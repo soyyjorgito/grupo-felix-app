@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { FormSection } from "@/components/floor-control/form-section"
 import { type FloorControlRecord, initialFormState } from "@/lib/types"
+import { withAppointmentOptions, withoutAppointmentOptions, pvaOptions } from "@/lib/options"
 
 import {
     RotateCcw,
@@ -146,7 +147,7 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
     const validateStep = (step: number) => {
         const newErrors: Record<string, string> = {}
         let isValid = true
-        
+
         if (step === 1) {
             if (!formData.client.advisor.trim()) newErrors["client.advisor"] = "El asesor es requerido"
             if (!formData.client.date) newErrors["client.date"] = "La fecha es requerida"
@@ -221,27 +222,6 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
             setIsSubmitting(false)
         }
     }
-
-    // --- Opciones (Arrays) ---
-    const withAppointmentOptions = [
-        { id: "appointment", label: "Con cita" },
-        { id: "incoming_call", label: "Llamada entrante" },
-        { id: "internet", label: "Oportunidad Internet" },
-        { id: "database", label: "Base de datos" },
-        { id: "follow_up", label: "Seguimiento (No vendido)" },
-    ]
-
-    const withoutAppointmentOptions = [
-        { id: "advertising", label: "Publicidad" },
-        { id: "fresh_up", label: "Fresh up" },
-        { id: "referral", label: "Referido" },
-    ]
-
-    const pvaOptions = [
-        { id: "insurance", label: "Seguro" },
-        { id: "extended_warranty", label: "Garantía extendida" },
-        { id: "accessories", label: "Accesorios" },
-    ]
 
     return (
         <div className="space-y-6">

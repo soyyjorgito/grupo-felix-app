@@ -11,11 +11,9 @@ export default function NewClientPage() {
 
   const handleSubmit = async (data: Omit<FloorControlRecord, "id" | "created_at" | "updated_at">) => {
     
-    // URL de tu Lambda
     const URL = `${API_URL}/api/client-cards`;
 
     try {
-      // 1. Enviar los datos a la Lambda
       const response = await fetch(URL, {
         method: "POST",
         headers: {
@@ -28,11 +26,9 @@ export default function NewClientPage() {
         throw new Error(`Error en el servidor: ${response.statusText}`);
       }
 
-      // Opcional: Si la Lambda devuelve datos (ej. el ID creado), puedes leerlos aquí
       const result = await response.json(); 
       console.log("Cliente creado:", result);
 
-      // 3. Redirigir solo si todo salió bien
       router.push("/floor-control");
 
     } catch (error) {
