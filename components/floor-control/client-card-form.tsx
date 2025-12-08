@@ -31,7 +31,8 @@ import {
     Navigation,
     ChevronRight,
     ChevronLeft,
-    CheckCircle2
+    CheckCircle2,
+    AlertCircle
 } from "lucide-react"
 
 interface ClientCardFormProps {
@@ -56,7 +57,6 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [errors, setErrors] = useState<Record<string, string>>({})
 
-    // Nuevo estado para controlar el paso actual
     const [currentStep, setCurrentStep] = useState(1)
     const totalSteps = STEPS.length
 
@@ -65,6 +65,7 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
             ...prev,
             client: { ...prev.client, [field]: value },
         }))
+        // Limpiar error al escribir
         if (errors[`client.${field}`]) {
             setErrors((prev) => {
                 const newErrors = { ...prev }
@@ -79,6 +80,14 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
             ...prev,
             vehicle_interest: { ...prev.vehicle_interest, [field]: value },
         }))
+        // Limpiar error al escribir
+        if (errors[`vehicle_interest.${field}`]) {
+            setErrors((prev) => {
+                const newErrors = { ...prev }
+                delete newErrors[`vehicle_interest.${field}`]
+                return newErrors
+            })
+        }
     }
 
     const updateCurrentVehicle = (field: string, value: string) => {
@@ -86,6 +95,14 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
             ...prev,
             current_vehicle: { ...prev.current_vehicle, [field]: value },
         }))
+        // Limpiar error al escribir
+        if (errors[`current_vehicle.${field}`]) {
+            setErrors((prev) => {
+                const newErrors = { ...prev }
+                delete newErrors[`current_vehicle.${field}`]
+                return newErrors
+            })
+        }
     }
 
     const updateFinancing = (field: string, value: string) => {
@@ -99,6 +116,16 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
         setFormData((prev) => {
             const current = prev.visit[type]
             const updated = current.includes(option) ? current.filter((o) => o !== option) : [...current, option]
+            
+            // Limpiar error global de visita si se selecciona algo
+            if (errors["visit.type"]) {
+                setErrors((e) => {
+                    const newE = { ...e }
+                    delete newE["visit.type"]
+                    return newE
+                })
+            }
+
             return {
                 ...prev,
                 visit: { ...prev.visit, [type]: updated },
@@ -114,12 +141,12 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
         })
     }
 
-    // --- Lógica de Validación y Navegación ---
+    // --- Lógica de Validación y Navegación (ACTUALIZADA) ---
 
     const validateStep = (step: number) => {
         const newErrors: Record<string, string> = {}
         let isValid = true
-
+        
         if (step === 1) {
             if (!formData.client.advisor.trim()) newErrors["client.advisor"] = "El asesor es requerido"
             if (!formData.client.date) newErrors["client.date"] = "La fecha es requerida"
@@ -128,32 +155,28 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
             if (!formData.client.phone_primary.trim()) newErrors["client.phone_primary"] = "El teléfono principal es requerido"
         }
 
-        // Validación del Paso 2: Visita
         if (step === 2) {
-            const withAppointmentSelected = formData.visit.with_appointment.length > 0 || formData.visit.other_with_appointment.trim()
-            const withoutAppointmentSelected = formData.visit.without_appointment.length > 0 || formData.visit.other_without_appointment.trim()
+            const hasAppointmentSelection = formData.visit.with_appointment.length > 0 || formData.visit.other_with_appointment.trim() !== ""
+            const hasNoAppointmentSelection = formData.visit.without_appointment.length > 0 || formData.visit.other_without_appointment.trim() !== ""
             
-            if (!withAppointmentSelected && !withoutAppointmentSelected) {
-                newErrors["visit.type"] = "Debe seleccionar al menos una opción de visita (Con Cita o Sin Cita)"
+            if (!hasAppointmentSelection && !hasNoAppointmentSelection) {
+                newErrors["visit.type"] = "Debes seleccionar al menos una opción de visita o especificar 'Otro'."
             }
         }
 
         if (step === 3) {
             if (!formData.vehicle_interest.vehicle.trim()) newErrors["vehicle_interest.vehicle"] = "El vehículo de interés es requerido"
-            if (!formData.vehicle_interest.year.trim()) newErrors["vehicle_interest.year"] = "El año del vehículo es requerido"
+            if (!formData.vehicle_interest.year.trim()) newErrors["vehicle_interest.year"] = "El año es requerido"
         }
-        
-        if (step === 4) {
-            if (formData.current_vehicle.trade_in === 'yes') {
-                if (!formData.current_vehicle.brand.trim()) newErrors["current_vehicle.brand"] = "La marca del vehículo actual es requerida para toma de unidad"
-                if (!formData.current_vehicle.model.trim()) newErrors["current_vehicle.model"] = "El modelo del vehículo actual es requerido para toma de unidad"
-            }
-            if (!formData.current_vehicle.trade_in) {
-                 newErrors["current_vehicle.trade_in"] = "¿Toma de unidad? es requerido"
-            }
-        }
-        
 
+        if (step === 4) {
+            if (!formData.current_vehicle.trade_in) {
+                newErrors["current_vehicle.trade_in"] = "Selecciona si hay toma de unidad"
+            } else if (formData.current_vehicle.trade_in === 'yes') {
+                if (!formData.current_vehicle.brand.trim()) newErrors["current_vehicle.brand"] = "La marca es requerida para toma de unidad"
+                if (!formData.current_vehicle.model.trim()) newErrors["current_vehicle.model"] = "El modelo es requerido para toma de unidad"
+            }
+        }
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors)
@@ -178,7 +201,7 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        if (!validateStep(1)) {
+        if (!validateStep(1)) { // Validación básica mínima
             setCurrentStep(1)
             window.scrollTo({ top: 0, behavior: 'smooth' })
             return
@@ -186,7 +209,6 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
 
         setIsSubmitting(true)
         try {
-            console.log(formData);
             const submitData = {
                 ...formData,
                 status: isCorrection ? ("corrected" as const) : ("pending_review" as const),
@@ -239,7 +261,6 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
                         style={{ width: `${(currentStep / totalSteps) * 100}%` }}
                     />
                 </div>
-                {/* Indicadores visuales pequeños para pantallas grandes */}
                 <div className="hidden md:flex justify-between mt-2 px-1">
                     {STEPS.map((step) => (
                         <div key={step.id} className={`flex flex-col items-center ${step.id <= currentStep ? 'text-[#00539B]' : 'text-muted-foreground'}`}>
@@ -317,56 +338,27 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
                                 {errors["client.last_name"] && <p className="text-xs text-destructive">{errors["client.last_name"]}</p>}
                             </div>
 
+                            {/* ... Resto de campos del paso 1 sin cambios ... */}
                             <div className="space-y-2">
                                 <Label htmlFor="city" className="text-foreground flex items-center gap-2">
-                                    <MapPin className="h-4 w-4" />
-                                    Ciudad
+                                    <MapPin className="h-4 w-4" /> Ciudad
                                 </Label>
-                                <Input
-                                    id="city"
-                                    value={formData.client.city}
-                                    onChange={(e) => updateClient("city", e.target.value)}
-                                    placeholder="Ciudad"
-                                />
+                                <Input id="city" value={formData.client.city} onChange={(e) => updateClient("city", e.target.value)} placeholder="Ciudad" />
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="state" className="text-foreground">
-                                    Estado
-                                </Label>
-                                <Input
-                                    id="state"
-                                    value={formData.client.state}
-                                    onChange={(e) => updateClient("state", e.target.value)}
-                                    placeholder="Estado"
-                                />
+                                <Label htmlFor="state" className="text-foreground">Estado</Label>
+                                <Input id="state" value={formData.client.state} onChange={(e) => updateClient("state", e.target.value)} placeholder="Estado" />
                             </div>
 
                             <div className="space-y-2 md:col-span-2">
-                                <Label htmlFor="address" className="text-foreground">
-                                    Dirección
-                                </Label>
-                                <Textarea
-                                    id="address"
-                                    value={formData.client.address}
-                                    onChange={(e) => updateClient("address", e.target.value)}
-                                    placeholder="Dirección completa"
-                                    rows={2}
-                                />
+                                <Label htmlFor="address" className="text-foreground">Dirección</Label>
+                                <Textarea id="address" value={formData.client.address} onChange={(e) => updateClient("address", e.target.value)} placeholder="Dirección completa" rows={2} />
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="zip" className="text-foreground">
-                                    Código Postal
-                                </Label>
-                                <Input
-                                    id="zip"
-                                    type="text"
-                                    inputMode="numeric"
-                                    value={formData.client.zip}
-                                    onChange={(e) => updateClient("zip", e.target.value)}
-                                    placeholder="12345"
-                                />
+                                <Label htmlFor="zip" className="text-foreground">Código Postal</Label>
+                                <Input id="zip" type="text" inputMode="numeric" value={formData.client.zip} onChange={(e) => updateClient("zip", e.target.value)} placeholder="12345" />
                             </div>
 
                             <div className="space-y-2">
@@ -382,57 +374,26 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
                                     placeholder="(123) 456-7890"
                                     className={errors["client.phone_primary"] ? "border-destructive" : ""}
                                 />
-                                {errors["client.phone_primary"] && (
-                                    <p className="text-xs text-destructive">{errors["client.phone_primary"]}</p>
-                                )}
+                                {errors["client.phone_primary"] && <p className="text-xs text-destructive">{errors["client.phone_primary"]}</p>}
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="phone_secondary" className="text-foreground">
-                                    Teléfono Secundario
-                                </Label>
-                                <Input
-                                    id="phone_secondary"
-                                    type="tel"
-                                    value={formData.client.phone_secondary}
-                                    onChange={(e) => updateClient("phone_secondary", e.target.value)}
-                                    placeholder="(123) 456-7890"
-                                />
+                                <Label htmlFor="phone_secondary" className="text-foreground">Teléfono Secundario</Label>
+                                <Input id="phone_secondary" type="tel" value={formData.client.phone_secondary} onChange={(e) => updateClient("phone_secondary", e.target.value)} placeholder="(123) 456-7890" />
                             </div>
 
                             <div className="space-y-2">
                                 <Label htmlFor="email" className="text-foreground flex items-center gap-2">
-                                    <Mail className="h-4 w-4" />
-                                    Correo Electrónico
+                                    <Mail className="h-4 w-4" /> Correo Electrónico
                                 </Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    value={formData.client.email}
-                                    onChange={(e) => updateClient("email", e.target.value)}
-                                    placeholder="correo@ejemplo.com"
-                                />
+                                <Input id="email" type="email" value={formData.client.email} onChange={(e) => updateClient("email", e.target.value)} placeholder="correo@ejemplo.com" />
                             </div>
 
                             <div className="space-y-2 md:col-span-2">
                                 <Label className="text-foreground">¿Primera vez que visita?</Label>
-                                <RadioGroup
-                                    value={formData.client.first_time}
-                                    onValueChange={(value: string) => updateClient("first_time", value)}
-                                    className="flex gap-6"
-                                >
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="yes" id="first_time_yes" />
-                                        <Label htmlFor="first_time_yes" className="text-foreground font-normal">
-                                            Sí
-                                        </Label>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="no" id="first_time_no" />
-                                        <Label htmlFor="first_time_no" className="text-foreground font-normal">
-                                            No
-                                        </Label>
-                                    </div>
+                                <RadioGroup value={formData.client.first_time} onValueChange={(value: string) => updateClient("first_time", value)} className="flex gap-6">
+                                    <div className="flex items-center space-x-2"><RadioGroupItem value="yes" id="first_time_yes" /><Label htmlFor="first_time_yes" className="text-foreground font-normal">Sí</Label></div>
+                                    <div className="flex items-center space-x-2"><RadioGroupItem value="no" id="first_time_no" /><Label htmlFor="first_time_no" className="text-foreground font-normal">No</Label></div>
                                 </RadioGroup>
                             </div>
                         </div>
@@ -505,6 +466,14 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
                                     </div>
                                 </div>
                             </div>
+                            
+                            {/* --- ERROR MESSAGE FOR STEP 2 --- */}
+                            {errors["visit.type"] && (
+                                <div className="md:col-span-2 mt-2 flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 rounded-md border border-destructive/20 animate-in fade-in zoom-in-95">
+                                    <AlertCircle className="h-4 w-4" />
+                                    <span>{errors["visit.type"]}</span>
+                                </div>
+                            )}
                         </div>
                     </FormSection>
                 )}
@@ -519,20 +488,22 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
                             <div className="space-y-2">
                                 <Label htmlFor="vehicle" className="text-foreground flex items-center gap-2">
                                     <CarFront className="h-4 w-4" />
-                                    Vehículo
+                                    Vehículo <span className="text-destructive">*</span>
                                 </Label>
                                 <Input
                                     id="vehicle"
                                     value={formData.vehicle_interest.vehicle}
                                     onChange={(e) => updateVehicleInterest("vehicle", e.target.value)}
                                     placeholder="Ej: Chevrolet Silverado"
+                                    className={errors["vehicle_interest.vehicle"] ? "border-destructive" : ""}
                                 />
+                                {errors["vehicle_interest.vehicle"] && <p className="text-xs text-destructive">{errors["vehicle_interest.vehicle"]}</p>}
                             </div>
 
                             <div className="space-y-2">
                                 <Label htmlFor="vehicle_year" className="text-foreground flex items-center gap-2">
                                     <CalendarDays className="h-4 w-4" />
-                                    Año
+                                    Año <span className="text-destructive">*</span>
                                 </Label>
                                 <Input
                                     id="vehicle_year"
@@ -541,13 +512,14 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
                                     value={formData.vehicle_interest.year}
                                     onChange={(e) => updateVehicleInterest("year", e.target.value)}
                                     placeholder="2024"
+                                    className={errors["vehicle_interest.year"] ? "border-destructive" : ""}
                                 />
+                                {errors["vehicle_interest.year"] && <p className="text-xs text-destructive">{errors["vehicle_interest.year"]}</p>}
                             </div>
 
                             <div className="space-y-2">
                                 <Label htmlFor="version" className="text-foreground flex items-center gap-2">
-                                    <Hash className="h-4 w-4" />
-                                    Versión
+                                    <Hash className="h-4 w-4" /> Versión
                                 </Label>
                                 <Input
                                     id="version"
@@ -559,8 +531,7 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
 
                             <div className="space-y-2">
                                 <Label htmlFor="color" className="text-foreground flex items-center gap-2">
-                                    <Palette className="h-4 w-4" />
-                                    Color
+                                    <Palette className="h-4 w-4" /> Color
                                 </Label>
                                 <Input
                                     id="color"
@@ -571,9 +542,7 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
                             </div>
 
                             <div className="space-y-2 md:col-span-2">
-                                <Label htmlFor="accessories" className="text-foreground">
-                                    Accesorios
-                                </Label>
+                                <Label htmlFor="accessories" className="text-foreground">Accesorios</Label>
                                 <Textarea
                                     id="accessories"
                                     value={formData.vehicle_interest.accessories}
@@ -584,9 +553,7 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="second_option" className="text-foreground">
-                                    Segunda Opción
-                                </Label>
+                                <Label htmlFor="second_option" className="text-foreground">Segunda Opción</Label>
                                 <Input
                                     id="second_option"
                                     value={formData.vehicle_interest.second_option}
@@ -597,8 +564,7 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
 
                             <div className="space-y-2">
                                 <Label className="text-foreground flex items-center gap-2">
-                                    <Navigation className="h-4 w-4" />
-                                    ¿Se realizó prueba de manejo?
+                                    <Navigation className="h-4 w-4" /> ¿Se realizó prueba de manejo?
                                 </Label>
                                 <RadioGroup
                                     value={formData.vehicle_interest.test_drive}
@@ -607,15 +573,11 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
                                 >
                                     <div className="flex items-center space-x-2">
                                         <RadioGroupItem value="yes" id="test_drive_yes" />
-                                        <Label htmlFor="test_drive_yes" className="text-foreground font-normal">
-                                            Sí
-                                        </Label>
+                                        <Label htmlFor="test_drive_yes" className="text-foreground font-normal">Sí</Label>
                                     </div>
                                     <div className="flex items-center space-x-2">
                                         <RadioGroupItem value="no" id="test_drive_no" />
-                                        <Label htmlFor="test_drive_no" className="text-foreground font-normal">
-                                            No
-                                        </Label>
+                                        <Label htmlFor="test_drive_no" className="text-foreground font-normal">No</Label>
                                     </div>
                                 </RadioGroup>
                             </div>
@@ -630,34 +592,76 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
                         icon={<RotateCcw className="h-5 w-5 text-white" />}
                     >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                             
+                             {/* --- CAMBIO: RADIO GROUP MOVIDO ARRIBA PARA FLUJO LÓGICO --- */}
+                             <div className="space-y-2 md:col-span-2 p-4 bg-muted/20 rounded-lg border">
+                                <Label className="text-foreground text-base font-semibold">¿Toma de unidad? <span className="text-destructive">*</span></Label>
+                                <RadioGroup
+                                    value={formData.current_vehicle.trade_in}
+                                    onValueChange={(value: string) => {
+                                        updateCurrentVehicle("trade_in", value)
+                                        // Limpiar errores si cambian a "no"
+                                        if (value === 'no') {
+                                            setErrors(prev => {
+                                                const newE = {...prev}
+                                                delete newE["current_vehicle.brand"]
+                                                delete newE["current_vehicle.model"]
+                                                return newE
+                                            })
+                                        }
+                                        // Limpiar error del propio radio
+                                        if (errors["current_vehicle.trade_in"]) {
+                                             setErrors(prev => {
+                                                const newE = {...prev}
+                                                delete newE["current_vehicle.trade_in"]
+                                                return newE
+                                            })
+                                        }
+                                    }}
+                                    className="flex gap-6 mt-2"
+                                >
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="yes" id="trade_in_yes" />
+                                        <Label htmlFor="trade_in_yes" className="text-foreground font-normal">Sí</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="no" id="trade_in_no" />
+                                        <Label htmlFor="trade_in_no" className="text-foreground font-normal">No</Label>
+                                    </div>
+                                </RadioGroup>
+                                {errors["current_vehicle.trade_in"] && <p className="text-xs text-destructive mt-1">{errors["current_vehicle.trade_in"]}</p>}
+                            </div>
+
                             <div className="space-y-2">
                                 <Label htmlFor="current_brand" className="text-foreground">
-                                    Marca
+                                    Marca {formData.current_vehicle.trade_in === 'yes' && <span className="text-destructive">*</span>}
                                 </Label>
                                 <Input
                                     id="current_brand"
                                     value={formData.current_vehicle.brand}
                                     onChange={(e) => updateCurrentVehicle("brand", e.target.value)}
                                     placeholder="Marca del vehículo actual"
+                                    className={errors["current_vehicle.brand"] ? "border-destructive" : ""}
                                 />
+                                {errors["current_vehicle.brand"] && <p className="text-xs text-destructive">{errors["current_vehicle.brand"]}</p>}
                             </div>
 
                             <div className="space-y-2">
                                 <Label htmlFor="current_model" className="text-foreground">
-                                    Modelo
+                                    Modelo {formData.current_vehicle.trade_in === 'yes' && <span className="text-destructive">*</span>}
                                 </Label>
                                 <Input
                                     id="current_model"
                                     value={formData.current_vehicle.model}
                                     onChange={(e) => updateCurrentVehicle("model", e.target.value)}
                                     placeholder="Modelo"
+                                    className={errors["current_vehicle.model"] ? "border-destructive" : ""}
                                 />
+                                {errors["current_vehicle.model"] && <p className="text-xs text-destructive">{errors["current_vehicle.model"]}</p>}
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="current_year" className="text-foreground">
-                                    Año
-                                </Label>
+                                <Label htmlFor="current_year" className="text-foreground">Año</Label>
                                 <Input
                                     id="current_year"
                                     type="text"
@@ -666,28 +670,6 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
                                     onChange={(e) => updateCurrentVehicle("year", e.target.value)}
                                     placeholder="Año"
                                 />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label className="text-foreground">¿Toma de unidad?</Label>
-                                <RadioGroup
-                                    value={formData.current_vehicle.trade_in}
-                                    onValueChange={(value: string) => updateCurrentVehicle("trade_in", value)}
-                                    className="flex gap-6"
-                                >
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="yes" id="trade_in_yes" />
-                                        <Label htmlFor="trade_in_yes" className="text-foreground font-normal">
-                                            Sí
-                                        </Label>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="no" id="trade_in_no" />
-                                        <Label htmlFor="trade_in_no" className="text-foreground font-normal">
-                                            No
-                                        </Label>
-                                    </div>
-                                </RadioGroup>
                             </div>
                         </div>
                     </FormSection>
@@ -709,21 +691,15 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
                                 >
                                     <div className="flex items-center space-x-2">
                                         <RadioGroupItem value="cash" id="financing_cash" />
-                                        <Label htmlFor="financing_cash" className="text-foreground font-normal">
-                                            Contado
-                                        </Label>
+                                        <Label htmlFor="financing_cash" className="text-foreground font-normal">Contado</Label>
                                     </div>
                                     <div className="flex items-center space-x-2">
                                         <RadioGroupItem value="credit" id="financing_credit" />
-                                        <Label htmlFor="financing_credit" className="text-foreground font-normal">
-                                            Crédito
-                                        </Label>
+                                        <Label htmlFor="financing_credit" className="text-foreground font-normal">Crédito</Label>
                                     </div>
                                     <div className="flex items-center space-x-2">
                                         <RadioGroupItem value="leasing" id="financing_leasing" />
-                                        <Label htmlFor="financing_leasing" className="text-foreground font-normal">
-                                            Leasing
-                                        </Label>
+                                        <Label htmlFor="financing_leasing" className="text-foreground font-normal">Leasing</Label>
                                     </div>
                                 </RadioGroup>
                             </div>
@@ -737,15 +713,11 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
                                 >
                                     <div className="flex items-center space-x-2">
                                         <RadioGroupItem value="yes" id="f_and_i_yes" />
-                                        <Label htmlFor="f_and_i_yes" className="text-foreground font-normal">
-                                            Sí
-                                        </Label>
+                                        <Label htmlFor="f_and_i_yes" className="text-foreground font-normal">Sí</Label>
                                     </div>
                                     <div className="flex items-center space-x-2">
                                         <RadioGroupItem value="no" id="f_and_i_no" />
-                                        <Label htmlFor="f_and_i_no" className="text-foreground font-normal">
-                                            No
-                                        </Label>
+                                        <Label htmlFor="f_and_i_no" className="text-foreground font-normal">No</Label>
                                     </div>
                                 </RadioGroup>
                             </div>
@@ -799,7 +771,6 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
 
                 {/* Footer Navigation Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t mt-6">
-                    {/* Botón Atrás */}
                     <Button
                         type="button"
                         variant="outline"
@@ -813,7 +784,6 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
 
                     <div className="flex-1"></div>
 
-                    {/* Botón Siguiente / Guardar */}
                     {currentStep < totalSteps ? (
                         <Button
                             type="button" 
@@ -828,13 +798,12 @@ export function ClientCardForm({ initialData, isCorrection = false, onSubmit }: 
                             type="button" 
                             disabled={isSubmitting}
                             className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={(e) => { // Añadimos el manejador onClick
+                            onClick={(e) => {
                                 const confirmationMessage = isCorrection
                                     ? "¿Estás seguro de enviar la corrección de esta tarjeta de cliente?"
                                     : "¿Estás seguro de crear el registro de esta tarjeta de cliente?"
 
                                 if (window.confirm(confirmationMessage)) {
-                                    // Si confirma, llamamos al handleSubmit
                                     handleSubmit(e as unknown as React.FormEvent)
                                 }
                             }}

@@ -33,7 +33,7 @@ export function AreaChartComponent() {
         <CardTitle>Tráfico en Sala de Exhibición</CardTitle>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] lg:w-[450px]">
+        <ChartContainer config={chartConfig} className="h-[300px] w-[300px] lg:w-[440px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
